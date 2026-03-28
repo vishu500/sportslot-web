@@ -29,7 +29,7 @@ export default function LoginPage() {
         router.push("/venues");
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Invalid credentials");
+      toast.error(err.response?.data?.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
