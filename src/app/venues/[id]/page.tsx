@@ -200,7 +200,7 @@ export default function VenueDetailPage() {
             <div style={{ display: "flex", gap: 10, marginBottom: 32, flexWrap: "wrap" }}>
               {dates.map((d, i) => (
                 <button key={i} onClick={() => setSelectedDate(i)} style={{
-                  padding: "10px 18px", borderRadius: 12, border: "none",
+                  padding: "10px 18px", borderRadius: 12,
                   background: selectedDate === i ? color : "var(--surface)",
                   color: selectedDate === i ? "#000" : "var(--text-muted)",
                   fontWeight: selectedDate === i ? 700 : 500, fontSize: 14,

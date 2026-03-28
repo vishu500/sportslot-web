@@ -11,46 +11,28 @@ export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", password: "", phone: "" });
+  const [role, setRole] = useState<"USER" | "VENUE_OWNER">("USER");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await authApi.register(form);
+      const res = await authApi.register({ ...form, role });
       const { token } = res.data;
-      login(token, { name: form.name, email: form.email });
-      toast.success("Account created! Let's find your court 🎉");
-      router.push("/venues");
+      login(token, { name: form.name, email: form.email, role });
+      toast.success("Account created! 🎉");
+      if (role === "VENUE_OWNER") {
+        router.push("/owner/dashboard");
+      } else {
+        router.push("/venues");
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
-
-  const field = (key: keyof typeof form, label: string, type = "text", placeholder = "") => (
-    <div>
-      <label style={{ color: "var(--text-muted)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        value={form[key]}
-        onChange={e => setForm({ ...form, [key]: e.target.value })}
-        placeholder={placeholder}
-        required={key !== "phone"}
-        style={{
-          width: "100%", background: "var(--surface2)",
-          border: "1px solid var(--border2)", borderRadius: "var(--radius-sm)",
-          padding: "12px 16px", color: "var(--text)", fontSize: 14,
-          outline: "none", transition: "border-color 0.2s"
-        }}
-        onFocus={e => e.target.style.borderColor = "var(--accent)"}
-        onBlur={e => e.target.style.borderColor = "var(--border2)"}
-      />
-    </div>
-  );
 
   return (
     <div style={{
@@ -60,7 +42,7 @@ export default function RegisterPage() {
       background: "radial-gradient(ellipse at top, #0d1a12 0%, var(--bg) 60%)"
     }}>
       <div className="fade-up" style={{
-        width: "100%", maxWidth: 420,
+        width: "100%", maxWidth: 440,
         background: "var(--surface)", borderRadius: 24,
         border: "1px solid var(--border)",
         padding: "40px 36px",
@@ -73,31 +55,74 @@ export default function RegisterPage() {
             </span>
           </Link>
           <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Create account</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Start booking sports venues today</p>
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Join SportSlot today</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {field("name", "Full Name", "text", "Arjun Singh")}
-          {field("email", "Email", "email", "arjun@email.com")}
-          {field("password", "Password", "password", "min 6 characters")}
-          {field("phone", "Phone (optional)", "tel", "9876543210")}
+        {/* Role Selector */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+          {[
+            { value: "USER", label: "🏃 I'm a Player", desc: "Book venues & play" },
+            { value: "VENUE_OWNER", label: "🏟️ I own a Venue", desc: "List & manage venues" },
+          ].map(r => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => setRole(r.value as "USER" | "VENUE_OWNER")}
+              style={{
+                flex: 1, padding: "14px 12px", borderRadius: 14,
+                border: `2px solid ${role === r.value ? "var(--accent)" : "var(--border2)"}`,
+                background: role === r.value ? "rgba(0,229,160,0.08)" : "var(--surface2)",
+                cursor: "pointer", textAlign: "center", transition: "all 0.2s"
+              }}
+            >
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{r.label.split(" ")[0]}</div>
+              <div style={{ color: role === r.value ? "var(--accent)" : "var(--text)", fontWeight: 700, fontSize: 13 }}>
+                {r.label.slice(2)}
+              </div>
+              <div style={{ color: "var(--text-muted)", fontSize: 11, marginTop: 2 }}>{r.desc}</div>
+            </button>
+          ))}
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: 8,
-              background: loading ? "var(--surface2)" : "var(--accent)",
-              color: loading ? "var(--text-dim)" : "#000",
-              border: "none", borderRadius: "var(--radius-sm)",
-              padding: "14px", fontWeight: 800, fontSize: 15,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "all 0.2s"
-            }}
-          >
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {[
+            { key: "name", label: "Full Name", type: "text", placeholder: "Arjun Singh" },
+            { key: "email", label: "Email", type: "email", placeholder: "arjun@email.com" },
+            { key: "password", label: "Password", type: "password", placeholder: "min 6 characters" },
+            { key: "phone", label: "Phone (optional)", type: "tel", placeholder: "9876543210" },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ color: "var(--text-muted)", fontSize: 13, fontWeight: 600, display: "block", marginBottom: 8 }}>
+                {f.label}
+              </label>
+              <input
+                type={f.type}
+                value={form[f.key as keyof typeof form]}
+                onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                placeholder={f.placeholder}
+                required={f.key !== "phone"}
+                style={{
+                  width: "100%", background: "var(--surface2)",
+                  border: "1px solid var(--border2)", borderRadius: "var(--radius-sm)",
+                  padding: "12px 16px", color: "var(--text)", fontSize: 14, outline: "none"
+                }}
+                onFocus={e => e.target.style.borderColor = "var(--accent)"}
+                onBlur={e => e.target.style.borderColor = "var(--border2)"}
+              />
+            </div>
+          ))}
+
+          <button type="submit" disabled={loading} style={{
+            marginTop: 8, background: loading ? "var(--surface2)" : "var(--accent)",
+            color: loading ? "var(--text-dim)" : "#000",
+            border: "none", borderRadius: "var(--radius-sm)",
+            padding: "14px", fontWeight: 800, fontSize: 15,
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+          }}>
             {loading
               ? <><span className="spinner" style={{ display: "inline-block", width: 18, height: 18, border: "2px solid #555", borderTopColor: "var(--accent)", borderRadius: "50%" }} /> Creating...</>
-              : "Create Account →"}
+              : `Create ${role === "VENUE_OWNER" ? "Owner" : ""} Account →`}
           </button>
         </form>
 
