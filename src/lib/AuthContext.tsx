@@ -1,15 +1,21 @@
 "use client";
 // src/lib/AuthContext.tsx
-// Global auth state — wraps the whole app so any component can access login state
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import Cookies from "js-cookie";
 
+interface AuthUser {
+  name: string;
+  email: string;
+  role: string; // USER, VENUE_OWNER, ADMIN
+}
+
 interface AuthContextType {
   token: string | null;
-  user: { name: string; email: string } | null;
+  user: AuthUser | null;
   isLoggedIn: boolean;
-  login: (token: string, user: { name: string; email: string }) => void;
+  isOwner: boolean;
+  isAdmin: boolean;
+  login: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
 
@@ -17,9 +23,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  // On first load, restore from cookie if present
   useEffect(() => {
     const savedToken = Cookies.get("token");
     const savedUser = Cookies.get("user");
@@ -29,8 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (newToken: string, newUser: { name: string; email: string }) => {
-    Cookies.set("token", newToken, { expires: 1 }); // 1 day
+  const login = (newToken: string, newUser: AuthUser) => {
+    Cookies.set("token", newToken, { expires: 1 });
     Cookies.set("user", JSON.stringify(newUser), { expires: 1 });
     setToken(newToken);
     setUser(newUser);
@@ -45,13 +50,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, isLoggedIn: !!token, login, logout }}>
+    <AuthContext.Provider value={{
+      token, user,
+      isLoggedIn: !!token,
+      isOwner: user?.role === "VENUE_OWNER" || user?.role === "ADMIN",
+      isAdmin: user?.role === "ADMIN",
+      login, logout
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook — use this in any component: const { user, isLoggedIn } = useAuth()
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
