@@ -1,6 +1,5 @@
 "use client";
-// src/app/owner/layout.tsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
@@ -12,16 +11,30 @@ const navItems = [
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, isOwner, user, logout } = useAuth();
+  const { isLoggedIn, isOwner, user, logout, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    if (loading) return; // wait for auth to load
     if (!isLoggedIn) { router.replace("/auth/login"); return; }
     if (!isOwner) { router.replace("/venues"); return; }
-  }, [isLoggedIn, isOwner]);
+  }, [isLoggedIn, isOwner, loading]);
 
-  if (!isLoggedIn || !isOwner) return null;
+  // Show nothing while auth is loading
+  if (loading || !isLoggedIn || !isOwner) return (
+    <div style={{
+      minHeight: "100vh", background: "var(--bg)",
+      display: "flex", alignItems: "center", justifyContent: "center"
+    }}>
+      <div className="spinner" style={{
+        width: 40, height: 40,
+        border: "3px solid var(--border)",
+        borderTopColor: "var(--accent)",
+        borderRadius: "50%"
+      }} />
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg)" }}>
@@ -33,7 +46,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         position: "fixed", top: 0, left: 0, height: "100vh",
         padding: "24px 0", zIndex: 100
       }}>
-        {/* Logo */}
         <div style={{ padding: "0 20px 28px", borderBottom: "1px solid var(--border)" }}>
           <Link href="/">
             <span style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 2 }}>
@@ -43,8 +55,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           <div style={{
             marginTop: 12, background: "rgba(0,229,160,0.1)",
             border: "1px solid rgba(0,229,160,0.3)",
-            borderRadius: 8, padding: "6px 10px",
-            display: "inline-block"
+            borderRadius: 8, padding: "6px 10px", display: "inline-block"
           }}>
             <span style={{ color: "var(--accent)", fontSize: 12, fontWeight: 700 }}>
               🏟️ Venue Owner
@@ -52,7 +63,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        {/* Nav Links */}
         <nav style={{ flex: 1, padding: "20px 12px" }}>
           {navItems.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -73,7 +83,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* User + Logout */}
         <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{
@@ -83,20 +92,18 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
               color: "#000", fontWeight: 800, fontSize: 14, flexShrink: 0
             }}>{user?.name?.[0]?.toUpperCase()}</div>
             <div style={{ overflow: "hidden" }}>
-              <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name}</p>
-              <p style={{ color: "var(--text-muted)", fontSize: 11, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</p>
+              <p style={{ color: "var(--text)", fontWeight: 600, fontSize: 13, margin: 0 }}>{user?.name}</p>
+              <p style={{ color: "var(--text-muted)", fontSize: 11, margin: 0 }}>{user?.email}</p>
             </div>
           </div>
           <button onClick={logout} style={{
             width: "100%", padding: "8px", borderRadius: 8,
             border: "1px solid rgba(255,68,68,0.3)", background: "none",
-            color: "#ff4444", fontSize: 13, fontWeight: 600, cursor: "pointer",
-            transition: "all 0.2s"
+            color: "#ff4444", fontSize: 13, fontWeight: 600, cursor: "pointer"
           }}>Logout</button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main style={{ marginLeft: 240, flex: 1, minHeight: "100vh" }}>
         {children}
       </main>

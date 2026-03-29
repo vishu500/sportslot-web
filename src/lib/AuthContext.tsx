@@ -6,7 +6,7 @@ import Cookies from "js-cookie";
 interface AuthUser {
   name: string;
   email: string;
-  role: string; // USER, VENUE_OWNER, ADMIN
+  role: string;
 }
 
 interface AuthContextType {
@@ -15,6 +15,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   isOwner: boolean;
   isAdmin: boolean;
+  loading: boolean;  // ← properly typed, not optional
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true); // ← starts TRUE until cookies are checked
 
   useEffect(() => {
     const savedToken = Cookies.get("token");
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
     }
+    setLoading(false); // ← set FALSE after cookie check is done
   }, []);
 
   const login = (newToken: string, newUser: AuthUser) => {
@@ -51,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      token, user,
+      token, user, loading,
       isLoggedIn: !!token,
       isOwner: user?.role === "VENUE_OWNER" || user?.role === "ADMIN",
       isAdmin: user?.role === "ADMIN",
