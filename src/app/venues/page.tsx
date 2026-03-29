@@ -1,175 +1,227 @@
 "use client";
-// src/app/owner/venues/page.tsx
-import { useState, useEffect } from "react";
+// src/app/venues/page.tsx
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import toast from "react-hot-toast";
-import { ownerApi } from "@/lib/api";
+import Navbar from "@/components/layout/Navbar";
+import { venueApi } from "@/lib/api";
 import { Venue } from "@/types";
+
+const SPORTS = ["All", "Badminton", "Football", "Tennis", "Basketball", "Cricket", "Volleyball"];
 
 const SPORT_COLORS: Record<string, string> = {
   Badminton: "#00E5A0", Football: "#FF6B35", Tennis: "#FFD700",
   Basketball: "#FF4081", Cricket: "#7C6AF7", Volleyball: "#00B4D8",
 };
-const SPORT_EMOJI: Record<string, string> = {
-  Badminton: "🏸", Football: "⚽", Tennis: "🎾",
-  Basketball: "🏀", Cricket: "🏏", Volleyball: "🏐",
-};
 
-export default function OwnerVenuesPage() {
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1,2,3,4,5].map(s => (
+        <svg key={s} width={13} height={13} viewBox="0 0 24 24"
+          fill={s <= Math.round(rating) ? "#FFD700" : "#333"}>
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+function VenuesContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState<number | null>(null);
+  const [search, setSearch] = useState(searchParams.get("query") || "");
+  const [sport, setSport] = useState(searchParams.get("sport") || "All");
 
-  useEffect(() => {
-    ownerApi.getMyVenues()
-      .then(r => setVenues(r.data))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Delete "${name}"? This will also delete all its slots.`)) return;
-    setDeleting(id);
+  const fetchVenues = useCallback(async () => {
+    setLoading(true);
     try {
-      await ownerApi.deleteVenue(id);
-      setVenues(prev => prev.filter(v => v.id !== id));
-      toast.success("Venue deleted");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to delete");
+      const res = await venueApi.getAll({
+        query: search || undefined,
+        sport: sport === "All" ? undefined : sport,
+      });
+      setVenues(res.data);
+    } catch {
+      setVenues([]);
     } finally {
-      setDeleting(null);
+      setLoading(false);
     }
-  };
+  }, [search, sport]);
+
+  useEffect(() => { fetchVenues(); }, [fetchVenues]);
+
+  const sportColor = (v: Venue) => SPORT_COLORS[v.sport] || "var(--accent)";
 
   return (
-    <div style={{ padding: "40px 32px", maxWidth: 1000 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36 }}>
-        <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 42, letterSpacing: 2, margin: 0 }}>
-            MY <span style={{ color: "var(--accent)" }}>VENUES</span>
+    <div style={{ minHeight: "100vh" }}>
+      <Navbar />
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+        {/* Header */}
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 52, letterSpacing: 3, lineHeight: 1
+          }}>
+            FIND A <span style={{ color: "var(--accent)" }}>VENUE</span>
           </h1>
-          <p style={{ color: "var(--text-muted)", marginTop: 8 }}>
-            Manage all your sports venues
+          <p style={{ color: "var(--text-muted)", marginTop: 8, fontSize: 15 }}>
+            Browse and book courts near you
           </p>
         </div>
-        <Link href="/owner/venues/new" style={{
-          background: "var(--accent)", color: "#000",
-          padding: "12px 24px", borderRadius: 12,
-          fontSize: 14, fontWeight: 800, textDecoration: "none",
-          display: "inline-block", marginTop: 8
-        }}>+ Add New Venue</Link>
-      </div>
 
-      {/* Venues */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <div className="spinner" style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", margin: "0 auto 16px" }} />
+        {/* Search + Filter */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+          <div style={{
+            flex: 1, minWidth: 240,
+            display: "flex", alignItems: "center", gap: 10,
+            background: "var(--surface)", borderRadius: "var(--radius-sm)",
+            padding: "12px 16px", border: "1px solid var(--border2)"
+          }}>
+            <span>🔍</span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search venue or area..."
+              style={{
+                background: "none", border: "none", outline: "none",
+                color: "var(--text)", fontSize: 14, flex: 1
+              }}
+            />
+          </div>
         </div>
-      ) : venues.length === 0 ? (
-        <div style={{
-          background: "var(--surface)", borderRadius: 20,
-          border: "1px dashed var(--border2)", padding: "60px",
-          textAlign: "center"
-        }}>
-          <p style={{ fontSize: 48, marginBottom: 16 }}>🏟️</p>
-          <p style={{ color: "var(--text-muted)", fontSize: 16, marginBottom: 24 }}>You haven't added any venues yet</p>
-          <Link href="/owner/venues/new" style={{
-            background: "var(--accent)", color: "#000",
-            padding: "12px 28px", borderRadius: 12,
-            fontSize: 15, fontWeight: 800, textDecoration: "none", display: "inline-block"
-          }}>Add Your First Venue →</Link>
+
+        {/* Sport tabs */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 32, flexWrap: "wrap" }}>
+          {SPORTS.map(s => (
+            <button
+              key={s}
+              onClick={() => setSport(s)}
+              style={{
+                padding: "7px 18px", borderRadius: 20,
+                background: sport === s ? "var(--accent)" : "var(--surface)",
+                color: sport === s ? "#000" : "var(--text-muted)",
+                fontWeight: sport === s ? 700 : 500,
+                fontSize: 13, transition: "all 0.2s",
+                border: sport === s ? "none" : "1px solid var(--border2)"
+              } as React.CSSProperties}
+            >{s}</button>
+          ))}
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {venues.map(v => {
-            const color = SPORT_COLORS[v.sport] || "var(--accent)";
-            return (
-              <div key={v.id} className="fade-up" style={{
-                background: "var(--surface)", borderRadius: 18,
-                border: `1px solid ${color}30`, overflow: "hidden"
-              }}>
-                <div style={{
-                  display: "flex", gap: 18, alignItems: "center",
-                  padding: "20px 24px",
-                  background: `linear-gradient(135deg, ${color}10, transparent)`
-                }}>
-                  {/* Emoji */}
-                  <div style={{
-                    width: 56, height: 56, borderRadius: 16, flexShrink: 0,
-                    background: `${color}20`, display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    fontSize: 28, border: `1px solid ${color}40`
-                  }}>{SPORT_EMOJI[v.sport] || "🏟️"}</div>
 
-                  {/* Info */}
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{v.name}</h3>
-                    <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                      <span style={{ color, fontSize: 12, fontWeight: 700 }}>{v.sport}</span>
-                      <span style={{ color: "var(--text-dim)" }}>•</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>📍 {v.location}</span>
-                      {v.address && <>
-                        <span style={{ color: "var(--text-dim)" }}>•</span>
-                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{v.address}</span>
-                      </>}
-                    </div>
-                    {v.amenities && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                        {v.amenities.split(",").map(a => (
-                          <span key={a} style={{
-                            background: "var(--surface2)", color: "var(--text-muted)",
-                            padding: "2px 8px", borderRadius: 6, fontSize: 11,
-                            border: "1px solid var(--border2)"
-                          }}>✓ {a.trim()}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Price */}
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <p style={{ color, fontWeight: 900, fontSize: 22, margin: 0 }}>₹{v.pricePerHour}</p>
-                    <p style={{ color: "var(--text-dim)", fontSize: 11, margin: 0 }}>/hr</p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{
-                  display: "flex", gap: 10, padding: "12px 24px",
-                  borderTop: `1px solid ${color}20`,
-                  background: "var(--surface2)"
-                }}>
-                  <Link href={`/owner/venues/${v.id}/slots`} style={{
-                    flex: 1, background: `${color}15`, color,
-                    padding: "9px 0", borderRadius: 10, textAlign: "center",
-                    fontSize: 13, fontWeight: 700, textDecoration: "none",
-                    border: `1px solid ${color}30`
-                  }}>📅 Manage Slots</Link>
-
-                  <Link href={`/owner/venues/${v.id}/edit`} style={{
-                    flex: 1, background: "var(--surface)", color: "var(--text-muted)",
-                    padding: "9px 0", borderRadius: 10, textAlign: "center",
-                    fontSize: 13, fontWeight: 600, textDecoration: "none",
-                    border: "1px solid var(--border2)"
-                  }}>✏️ Edit</Link>
-
-                  <button
-                    onClick={() => handleDelete(v.id, v.name)}
-                    disabled={deleting === v.id}
+        {/* Results */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <div className="spinner" style={{
+              width: 40, height: 40, border: "3px solid var(--border)",
+              borderTopColor: "var(--accent)", borderRadius: "50%",
+              margin: "0 auto 16px"
+            }} />
+            <p style={{ color: "var(--text-muted)" }}>Loading venues...</p>
+          </div>
+        ) : venues.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 0" }}>
+            <p style={{ fontSize: 48, marginBottom: 16 }}>🏟️</p>
+            <p style={{ color: "var(--text-muted)", fontSize: 16 }}>No venues found. Try a different search.</p>
+          </div>
+        ) : (
+          <>
+            <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 20 }}>
+              {venues.length} venue{venues.length !== 1 ? "s" : ""} found
+            </p>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+              gap: 20
+            }}>
+              {venues.map((v, i) => {
+                const color = sportColor(v);
+                return (
+                  <Link
+                    key={v.id}
+                    href={`/venues/${v.id}`}
+                    className="fade-up"
                     style={{
-                      flex: 1, background: "none",
-                      color: deleting === v.id ? "var(--text-dim)" : "#ff4444",
-                      padding: "9px 0", borderRadius: 10,
-                      fontSize: 13, fontWeight: 600, cursor: "pointer",
-                      border: "1px solid rgba(255,68,68,0.3)"
+                      background: "var(--surface)",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      overflow: "hidden", display: "block",
+                      transition: "all 0.25s",
+                      animationDelay: `${i * 0.06}s`
                     }}
-                  >{deleting === v.id ? "Deleting..." : "🗑️ Delete"}</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.borderColor = color;
+                      (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
+                      (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 40px ${color}20`;
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                      (e.currentTarget as HTMLElement).style.transform = "none";
+                      (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                    }}
+                  >
+                    {/* Card top band */}
+                    <div style={{
+                      background: `linear-gradient(135deg, ${color}18, ${color}06)`,
+                      borderBottom: `1px solid ${color}25`,
+                      padding: "20px 20px 16px",
+                      display: "flex", gap: 14, alignItems: "flex-start"
+                    }}>
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                        background: `${color}20`, display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        fontSize: 26, border: `1px solid ${color}35`
+                      }}>
+                        {v.sport === "Badminton" ? "🏸" : v.sport === "Football" ? "⚽" :
+                         v.sport === "Tennis" ? "🎾" : v.sport === "Basketball" ? "🏀" :
+                         v.sport === "Cricket" ? "🏏" : "🏐"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{v.name}</h3>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ color, fontSize: 12, fontWeight: 700 }}>{v.sport}</span>
+                          <span style={{ color: "var(--text-dim)" }}>•</span>
+                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>📍 {v.location}</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <p style={{ color, fontWeight: 800, fontSize: 18 }}>₹{v.pricePerHour}</p>
+                        <p style={{ color: "var(--text-dim)", fontSize: 11 }}>/hr</p>
+                      </div>
+                    </div>
+
+                    {/* Card bottom */}
+                    <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <StarRow rating={v.avgRating} />
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{v.avgRating?.toFixed(1)}</span>
+                        <span style={{ color: "var(--text-dim)", fontSize: 12 }}>({v.totalReviews})</span>
+                      </div>
+                      <span style={{
+                        background: `${color}15`, color,
+                        fontSize: 12, fontWeight: 700,
+                        padding: "4px 12px", borderRadius: 20,
+                        border: `1px solid ${color}30`
+                      }}>Book →</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+export default function VenuesPage() {
+  return (
+    <Suspense fallback={<div style={{ background: "var(--bg)", minHeight: "100vh" }} />}>
+      <VenuesContent />
+    </Suspense>
   );
 }
